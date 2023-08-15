@@ -1,15 +1,6 @@
 import os
 import subprocess
-# import zipfile
 import shutil
-
-# Installing required packages
-# print("Installing Dependencies...")
-# subprocess.check_call(['pip', 'install', '-q', 'tqdm'])
-# subprocess.check_call(['pip', 'install', '-q', 'gitpython'])
-
-from tqdm import tqdm
-# from git import Repo
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
 input_folder = os.path.join(script_directory, "Input")
@@ -17,6 +8,20 @@ output_folder = os.path.join(script_directory, "Output")
 temp_folder = os.path.join(script_directory, "Temp")
 ffmpeg_folder = os.path.join(script_directory, "ffmpeg")
 target_text_file = os.path.join(temp_folder, "list.txt")
+
+# Check if the input folder is empty
+file_names = os.listdir(input_folder)
+if not file_names:
+    print("Input folder is empty. Nothing to process.")
+    exit(0)
+
+# Installing required packages
+print("Checking Dependencies...")
+try:
+    from tqdm import tqdm
+except ImportError:
+    subprocess.check_call(['pip', 'install', '-q', 'tqdm'])
+    from tqdm import tqdm
 
 # Detect the operating system
 is_windows = os.name == "nt"
@@ -50,48 +55,47 @@ if is_windows:
 else:
     ffmpeg_executable = "ffmpeg"
 
-output_index = 1
-output_file = os.path.join(output_folder, "output.mp4")
-while os.path.exists(output_file):
-    output_index += 1
-    output_file = os.path.join(output_folder, "output({}).mp4".format(output_index))
+try:
+    output_index = 1
+    output_file = os.path.join(output_folder, "output.mp4")
+    while os.path.exists(output_file):
+        output_index += 1
+        output_file = os.path.join(output_folder, "output({}).mp4".format(output_index))
 
-# Creating Temp folder, if not exists
-if not os.path.exists(temp_folder):
-    os.makedirs(temp_folder)
+    # Creating Temp folder, if not exists
+    if not os.path.exists(temp_folder):
+        os.makedirs(temp_folder)
 
-file_names = os.listdir(input_folder) # Getting file names from Input Folder
+    # Creating list.txt file
+    # with open(target_text_file, "w") as f:
+    #     for file_name in file_names:
+    #         f.write("file ..//Input//'" + file_name + "'\n")
 
-# Creating list.txt file
-# with open(target_text_file, "w") as f:
-#     for file_name in file_names:
-#         f.write("file ..//Input//'" + file_name + "'\n")
+    with open(target_text_file, "w") as f:
+        for file_name in file_names:
+            f.write("file '" + os.path.join(input_folder, file_name) + "'\n")
 
-with open(target_text_file, "w") as f:
-    for file_name in file_names:
-        f.write("file '" + os.path.join(input_folder, file_name) + "'\n")
+    total_files = len(file_names)
+    ffmpeg_command = [
+        ffmpeg_executable,
+        "-f", "concat",
+        "-safe", "0",
+        "-i", target_text_file,
+        "-c", "copy",
+        output_file
+    ]
 
+    # Progress bar
+    with tqdm(total=total_files, desc="Processing", ncols=100) as pbar:
+        subprocess.run(ffmpeg_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        pbar.update(total_files)
 
+except Exception as e:
+    print("An error occurred:", e)
 
-total_files = len(file_names)
-print(target_text_file)
-print(output_file)
-ffmpeg_command = [
-    ffmpeg_executable,
-    "-f", "concat",
-    "-safe", "0",
-    "-i", target_text_file,
-    "-c", "copy",
-    output_file
-]
-
-# Progress bar
-with tqdm(total=total_files, desc="Processing", ncols=100) as pbar:
-    subprocess.run(ffmpeg_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    pbar.update(total_files)
-
-# Removing Temp folder
-shutil.rmtree(temp_folder)
+finally:
+    # Removing Temp folder
+    if os.path.exists(temp_folder):
+        shutil.rmtree(temp_folder)
 
 print("\nScript Completed Successfully. Check Output folder.")
-input("Press Enter to exit...")
