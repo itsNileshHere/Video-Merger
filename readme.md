@@ -1,1 +1,0 @@
-This is just a project I made because I couldn't find any efficient way to Merge two videos, without paying those Companies thousand of dollars. The tool is written in python and does a pretty straightforward job.
