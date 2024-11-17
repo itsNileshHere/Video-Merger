@@ -9,7 +9,7 @@ echo 2. Video_Format.py
 echo 3. Video_Compress.py
 echo 4. Exit
 echo.
-echo ** No Compression will be performed script 1 & 2
+echo ** No Compression will be performed script 1 ^& 2
 echo ** Video_Format.py only converts .ts video file to any format.
 echo.
 set /p choice=Enter your choice: 
