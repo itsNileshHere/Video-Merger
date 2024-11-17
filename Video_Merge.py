@@ -1,8 +1,13 @@
 import os
 import subprocess
 import shutil
+import sys
+import time
 
 script_directory = os.path.dirname(os.path.abspath(__file__))
+dependencies_folder = os.path.join(script_directory, "dist")
+os.environ["PATH"] += os.pathsep + dependencies_folder
+
 input_folder = os.path.join(script_directory, "Input")
 output_folder = os.path.join(script_directory, "Output")
 temp_folder = os.path.join(script_directory, "Temp")
@@ -15,24 +20,14 @@ if not file_names:
     print("Input folder is empty. Nothing to process.")
     exit(0)
 
-# Installing required packages
-print("Checking Dependencies...")
-try:
-    from tqdm import tqdm
-except ImportError:
-    subprocess.check_call(['pip', 'install', '-q', 'tqdm'])
-    from tqdm import tqdm
-
-# Detect the operating system
+print("Starting Script — ")
 is_windows = os.name == "nt"
 is_linux = os.name == "posix"
 
-print("Starting Script — ")
 if is_windows:
     print("Windows OS Detected...\nExecuting Script based on that...")
 else:
     print("Linux OS Detected...\nChecking if ffmpeg is installed...")
-
 
 # Check if FFmpeg is installed on Linux
 ffmpeg_installed = False
@@ -60,22 +55,21 @@ try:
     output_file = os.path.join(output_folder, "output.mp4")
     while os.path.exists(output_file):
         output_index += 1
-        output_file = os.path.join(output_folder, "output({}).mp4".format(output_index))
+        output_file = os.path.join(output_folder, f"output({output_index}).mp4")
 
     # Creating Temp folder, if not exists
     if not os.path.exists(temp_folder):
         os.makedirs(temp_folder)
 
-    # Creating list.txt file
-    # with open(target_text_file, "w") as f:
-    #     for file_name in file_names:
-    #         f.write("file ..//Input//'" + file_name + "'\n")
+    # Write the file list with proper escaping
+    with open(target_text_file, "w", encoding='utf-8') as f:
+        for file_name in sorted(file_names):
+            file_path = os.path.join(input_folder, file_name)
+            # Escape the path for FFmpeg
+            escaped_path = file_path.replace("\\", "/")
+            escaped_path = escaped_path.replace("'", "'\\''")
+            f.write(f"file '{escaped_path}'\n")
 
-    with open(target_text_file, "w") as f:
-        for file_name in file_names:
-            f.write("file '" + os.path.join(input_folder, file_name) + "'\n")
-
-    total_files = len(file_names)
     ffmpeg_command = [
         ffmpeg_executable,
         "-f", "concat",
@@ -85,16 +79,32 @@ try:
         output_file
     ]
 
-    # Progress bar
-    with tqdm(total=total_files, desc="Processing", ncols=100) as pbar:
-        subprocess.run(ffmpeg_command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        pbar.update(total_files)
+    process = subprocess.Popen(
+        ffmpeg_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+
+    print("Processing", end="", flush=True)
+    dots = 0
+    while process.poll() is None:
+        dots = (dots % 3) + 1
+        sys.stdout.write('\r' + 'Processing' + '.' * dots + ' ' * (3 - dots))
+        sys.stdout.flush()
+        time.sleep(0.5)
+
+    process.wait()
+
+    if process.returncode != 0:
+        stderr_output = process.stderr.read().decode('utf-8', errors='replace')
+        raise subprocess.CalledProcessError(process.returncode, ffmpeg_command, stderr_output)
+
+    print("\nProcessing completed!")
 
 except Exception as e:
-    print("An error occurred:", e)
+    print("\nAn error occurred:", str(e))
 
 finally:
-    # Removing Temp folder
     if os.path.exists(temp_folder):
         shutil.rmtree(temp_folder)
 

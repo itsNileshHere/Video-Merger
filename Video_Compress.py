@@ -14,10 +14,10 @@ os.makedirs(output_folder, exist_ok=True)
 
 # List all files in the input folder
 input_files = os.listdir(input_folder)
-input_files = [f for f in input_files if f.endswith('.ts')]
+input_files = [f for f in input_files if f.endswith('.mp4')]
 
 if not input_files:
-    print("No .ts files found in the input folder.")
+    print("No video files found in the input folder.")
     exit(1)
 
 # Detect the operating system
@@ -53,30 +53,19 @@ else:
     ffmpeg_executable = "ffmpeg"
 
 
-print("Select the desired output format:")
-print("1. MP4")
-print("2. MKV")
-
-choice = input("Enter the corresponding number: ")
-
-if choice == "1":
-    output_format = "mp4"
-elif choice == "2":
-    output_format = "mkv"
-else:
-    print("Invalid choice.")
-    exit(1)
-
 for input_file in input_files:
     input_path = os.path.join(input_folder, input_file)
-    output_file = os.path.splitext(input_file)[0] + "." + output_format
+    output_file = os.path.splitext(input_file)[0] + ".mp4"
     output_path = os.path.join(output_folder, output_file)
 
     ffmpeg_command = [
         ffmpeg_executable,
         "-i", input_path,
-        "-c:v", "copy",
-        "-c:a", "copy",
+        "-vcodec", "libx265",
+        "-crf", "20",
+        "-tag:v", "hvc1",
+        "-preset", "medium",
+        "-threads", "8",
         output_path
     ]
 
